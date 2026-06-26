@@ -1,0 +1,17 @@
+{
+  "short_name": "Capital Homes",
+  "name": "Capital Homes - نظام إدارة المشاريع",
+  "description": "نظام إدارة مشاريع كابيتال هومز للمقاولات - DAMAC Hills 2",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#1B2A4A",
+  "background_color": "#1B2A4A",
+  "lang": "ar",
+  "dir": "rtl",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ],
+  "categories": ["business", "productivity"]
+}
