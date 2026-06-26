@@ -14,6 +14,14 @@ const STATUS_COLOR = {"جارٍ التنفيذ":"#10B981","متوقف":"#EF4444"
 const ROLE_COLOR = {"مدير":"#10B981","مهندس":"#3B82F6","مشتريات":"#F59E0B"};
 const TYPE_ICON = {"رسالة":"✉️","تقرير تقدم":"📊","أمر تغيير":"🔄","رسم هندسي":"📐","محضر اجتماع":"📑","أخرى":"📄"};
 const DOC_TYPES = ["رسالة","تقرير تقدم","أمر تغيير","رسم هندسي","محضر اجتماع","أخرى"];
+const DOC_CATEGORIES = {
+  "رسومات": ["مخطط معماري","مخطط إنشائي","مخطط كهرباء","مخطط ميكانيكا","رسم تفصيلي","أخرى"],
+  "رسايل استشاري": ["رسالة واردة","رسالة صادرة","محضر اجتماع","تعليمات موقع","أخرى"],
+  "أوراق بلدية": ["رخصة بناء","طلب صب","اعتماد مخطط","تصريح","أخرى"],
+  "NOC": ["NOC بلدية","NOC DEWA","NOC اتصالات","NOC دفاع مدني","أخرى"],
+  "DEWA": ["طلب توصيل","عداد مؤقت","فحص كهرباء","شهادة إنجاز","أخرى"],
+  "صور الموقع": ["صورة موقع"],
+};
 const UNITS = ["طن","م²","م³","كيس","قطعة","لتر","متر","كجم","طول","رول"];
 
 // ── UI PRIMITIVES ──────────────────────────────────────────
@@ -169,18 +177,42 @@ const Dashboard = ({role,sites,requests,attendance,notifs}) => {
 
 // ── SITES ───────────────────────────────────────────────────
 const SiteForm = ({initial={},onSave,onClose,engineers}) => {
-  const [f,setF]=useState({name:"",plot:"",engineer:"",status:"جارٍ التنفيذ",progress:0,...initial});
+  const [f,setF]=useState({name:"",plot:"",engineer:"",status:"جارٍ التنفيذ",progress:0,
+    licenseNo:"",startDate:"",initialDelivery:"",finalDelivery:"",extensionPeriod:"",
+    extendedDelivery:"",stopPeriod:"",stopReason:"",phase:"هيكل",...initial});
   const ok=f.name.trim()&&f.plot.trim()&&f.engineer;
   return (
     <Modal title={initial.id?"تعديل الموقع":"إضافة موقع جديد"} onClose={onClose}>
-      <Inp label="اسم الموقع" value={f.name} onChange={v=>setF({...f,name:v})} placeholder="مثال: فيلا 145" required/>
-      <Inp label="رقم القطعة" value={f.plot} onChange={v=>setF({...f,plot:v})} placeholder="مثال: 91412999" required/>
-      <Sel label="المهندس المسؤول" value={f.engineer} onChange={v=>setF({...f,engineer:v})} options={engineers} required/>
-      <Sel label="الحالة" value={f.status} onChange={v=>setF({...f,status:v})} options={["جارٍ التنفيذ","متوقف","مكتمل"]}/>
-      <Inp label="نسبة الإنجاز" value={String(f.progress)} onChange={v=>setF({...f,progress:Math.min(100,Math.max(0,+v||0))})} type="number" min="0" placeholder="0"/>
+      <div style={{background:"#F9FAFB",borderRadius:10,padding:12,marginBottom:14}}>
+        <div style={{fontSize:12,fontWeight:700,color:"#B8923C",marginBottom:10}}>البيانات الاساسية</div>
+        <Inp label="اسم الموقع" value={f.name} onChange={v=>setF({...f,name:v})} placeholder="فيلا 145" required/>
+        <Inp label="رقم القطعة" value={f.plot} onChange={v=>setF({...f,plot:v})} placeholder="91412999" required/>
+        <Sel label="المهندس" value={f.engineer} onChange={v=>setF({...f,engineer:v})} options={engineers} required/>
+        <Sel label="الحالة" value={f.status} onChange={v=>setF({...f,status:v})} options={["جارٍ التنفيذ","متوقف","مكتمل"]}/>
+        <Sel label="مرحلة العمل" value={f.phase} onChange={v=>setF({...f,phase:v})} options={["هيكل","تشطيبات","تمديدات","ميكانيكا وكهرباء","تسليم"]}/>
+        <Inp label="نسبة الانجاز %" value={String(f.progress)} onChange={v=>setF({...f,progress:Math.min(100,Math.max(0,+v||0))})} type="number" min="0" placeholder="0"/>
+      </div>
+      <div style={{background:"#F9FAFB",borderRadius:10,padding:12,marginBottom:14}}>
+        <div style={{fontSize:12,fontWeight:700,color:"#1B2A4A",marginBottom:10}}>بيانات الرخصة والتسليم</div>
+        <Inp label="رقم رخصة البناء" value={f.licenseNo} onChange={v=>setF({...f,licenseNo:v})} placeholder="BL-2025-00123"/>
+        <div style={{display:"flex",gap:8}}>
+          <div style={{flex:1}}><Inp label="تاريخ البداية" value={f.startDate} onChange={v=>setF({...f,startDate:v})} type="date"/></div>
+          <div style={{flex:1}}><Inp label="تسليم ابتدائي" value={f.initialDelivery} onChange={v=>setF({...f,initialDelivery:v})} type="date"/></div>
+        </div>
+        <div style={{display:"flex",gap:8}}>
+          <div style={{flex:1}}><Inp label="تسليم نهائي" value={f.finalDelivery} onChange={v=>setF({...f,finalDelivery:v})} type="date"/></div>
+          <div style={{flex:1}}><Inp label="تسليم بعد التمديد" value={f.extendedDelivery} onChange={v=>setF({...f,extendedDelivery:v})} type="date"/></div>
+        </div>
+        <Inp label="فترة التمديد (ايام)" value={f.extensionPeriod} onChange={v=>setF({...f,extensionPeriod:v})} type="number" placeholder="0"/>
+      </div>
+      <div style={{background:"#FEF2F2",borderRadius:10,padding:12,marginBottom:14}}>
+        <div style={{fontSize:12,fontWeight:700,color:"#EF4444",marginBottom:10}}>بيانات التوقف</div>
+        <Inp label="فترة التوقف (ايام)" value={f.stopPeriod} onChange={v=>setF({...f,stopPeriod:v})} type="number" placeholder="0"/>
+        <Inp label="اسباب التوقف" value={f.stopReason} onChange={v=>setF({...f,stopReason:v})} placeholder="اكتب اسباب التوقف..." rows={2}/>
+      </div>
       <div style={{display:"flex",gap:8}}>
-        <Btn full disabled={!ok} onClick={()=>ok&&onSave({...f,name:f.name.trim(),plot:f.plot.trim()})}>حفظ</Btn>
-        <Btn v="secondary" full onClick={onClose}>إلغاء</Btn>
+        <Btn full disabled={!ok} onClick={()=>ok&&onSave({...f,name:f.name.trim(),plot:f.plot.trim()})}>حفظ الموقع</Btn>
+        <Btn v="secondary" full onClick={onClose}>الغاء</Btn>
       </div>
     </Modal>
   );
@@ -286,12 +318,38 @@ const ReqForm = ({siteId,siteName,userName,onSave,onClose}) => {
   );
 };
 
+const DocForm2 = ({siteId,siteName,userName,onSave,onClose}) => {
+  const [cat,setCat]=useState("رسومات");
+  const [subtype,setSubtype]=useState("");
+  const [title,setTitle]=useState("");
+  const [refNum,setRefNum]=useState("");
+  const [notes,setNotes]=useState("");
+  const subtypes=DOC_CATEGORIES[cat]||[];
+  return (
+    <Modal title="اضافة وثيقة" onClose={onClose}>
+      <Sel label="التصنيف" value={cat} onChange={v=>{setCat(v);setSubtype("");}} options={Object.keys(DOC_CATEGORIES)} required/>
+      <Sel label="النوع" value={subtype} onChange={setSubtype} options={subtypes} required/>
+      <Inp label="العنوان" value={title} onChange={setTitle} placeholder="عنوان الوثيقة" required/>
+      <Inp label="رقم المرجع" value={refNum} onChange={setRefNum} placeholder="CH-2026-001"/>
+      <Inp label="ملاحظات" value={notes} onChange={setNotes} rows={2}/>
+      <div style={{display:"flex",gap:8}}>
+        <Btn full disabled={!title.trim()||!subtype} onClick={()=>{onSave({id:uid(),siteId,site:siteName,title:title.trim(),category:cat,type:subtype,refNum,notes,by:userName,date:TODAY});onClose();}}>حفظ</Btn>
+        <Btn v="secondary" full onClick={onClose}>الغاء</Btn>
+      </div>
+    </Modal>
+  );
+};
+
+const CAT_ICON={"رسومات":"📐","رسايل استشاري":"✉️","أوراق بلدية":"🏛️","NOC":"📋","DEWA":"⚡","صور الموقع":"📸"};
+const CAT_COLOR={"رسومات":"#3B82F6","رسايل استشاري":"#8B5CF6","أوراق بلدية":"#F59E0B","NOC":"#EF4444","DEWA":"#F59E0B","صور الموقع":"#10B981"};
+
 const SiteDetail = ({site,role,userName,requests,docs,setRequests,setDocs,addNotif,onBack,showToast,sites,setSites}) => {
   const [tab,setTab]=useState("overview");
   const [modal,setModal]=useState(null);
   const [confirm,setConfirm]=useState(null);
   const [editProgress,setEditProgress]=useState(false);
   const [prog,setProg]=useState(site.progress);
+  const [docCat,setDocCat]=useState("الكل");
 
   const siteReqs=requests.filter(r=>r.siteId===site.id);
   const siteDocs=docs.filter(d=>d.siteId===site.id);
@@ -301,43 +359,107 @@ const SiteDetail = ({site,role,userName,requests,docs,setRequests,setDocs,addNot
   const delDoc=id=>{setDocs(docs.filter(d=>d.id!==id));setConfirm(null);showToast("تم الحذف");};
   const delReq=id=>{setRequests(requests.filter(r=>r.id!==id));setConfirm(null);showToast("تم الحذف");};
 
+  const filteredDocs=docCat==="الكل"?siteDocs:siteDocs.filter(d=>d.category===docCat);
+
+  const daysLeft=(date)=>{if(!date)return null;const d=Math.ceil((new Date(date)-new Date())/(1000*60*60*24));return d;};
+  const dl=daysLeft(currentSite.finalDelivery);
+  const dlColor=dl===null?"#6B7280":dl<0?"#EF4444":dl<30?"#F59E0B":"#10B981";
+
   return (
     <div>
       <button onClick={onBack} style={{background:"none",border:"none",color:"#B8923C",fontWeight:700,cursor:"pointer",fontSize:14,marginBottom:10,padding:0,fontFamily:"inherit"}}>← رجوع</button>
       <div style={{background:"#1B2A4A",borderRadius:16,padding:20,marginBottom:16,color:"#fff"}}>
-        <div style={{fontSize:20,fontWeight:800}}>{currentSite.name}</div>
-        <div style={{fontSize:13,color:"#B8923C",marginTop:4}}>قطعة {currentSite.plot}</div>
-        <div style={{fontSize:12,marginTop:5,color:"#94A3B8"}}>👷 {currentSite.engineer}</div>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+          <div>
+            <div style={{fontSize:20,fontWeight:800}}>{currentSite.name}</div>
+            <div style={{fontSize:13,color:"#B8923C",marginTop:4}}>قطعة {currentSite.plot}</div>
+            <div style={{fontSize:12,marginTop:5,color:"#94A3B8"}}>👷 {currentSite.engineer}</div>
+            {currentSite.phase&&<div style={{marginTop:4}}><Badge label={currentSite.phase} color="#B8923C"/></div>}
+          </div>
+          {dl!==null&&<div style={{textAlign:"center",background:"rgba(255,255,255,0.1)",borderRadius:10,padding:"8px 12px"}}>
+            <div style={{fontSize:20,fontWeight:800,color:dlColor}}>{dl<0?Math.abs(dl):dl}</div>
+            <div style={{fontSize:9,color:"#94A3B8"}}>{dl<0?"تأخير (يوم)":"يوم متبقي"}</div>
+          </div>}
+        </div>
         <div style={{marginTop:14}}>
-          <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:"#94A3B8",marginBottom:4}}><span>التقدم</span><span>{currentSite.progress}%</span></div>
+          <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:"#94A3B8",marginBottom:4}}><span>الإنجاز</span><span>{currentSite.progress}%</span></div>
           <div style={{background:"#0f1a2e",borderRadius:99,height:8}}><div style={{width:`${currentSite.progress}%`,background:"#B8923C",borderRadius:99,height:8}}/></div>
         </div>
         {role==="مدير"&&<button onClick={()=>{setProg(currentSite.progress);setEditProgress(true);}} style={{marginTop:10,background:"rgba(184,146,60,0.2)",border:"1px solid #B8923C",color:"#B8923C",borderRadius:8,padding:"5px 14px",fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>تحديث التقدم</button>}
       </div>
 
       {editProgress&&(
-        <Modal title="تحديث نسبة الإنجاز" onClose={()=>setEditProgress(false)}>
+        <Modal title="تحديث نسبة الانجاز" onClose={()=>setEditProgress(false)}>
           <input type="range" min="0" max="100" value={prog} onChange={e=>setProg(+e.target.value)} style={{width:"100%",marginBottom:8}}/>
           <div style={{textAlign:"center",fontSize:32,fontWeight:800,color:"#1B2A4A",marginBottom:16}}>{prog}%</div>
-          <div style={{display:"flex",gap:8}}><Btn full onClick={saveProgress}>حفظ</Btn><Btn v="secondary" full onClick={()=>setEditProgress(false)}>إلغاء</Btn></div>
+          <div style={{display:"flex",gap:8}}><Btn full onClick={saveProgress}>حفظ</Btn><Btn v="secondary" full onClick={()=>setEditProgress(false)}>الغاء</Btn></div>
         </Modal>
       )}
 
-      <div style={{display:"flex",gap:6,marginBottom:14}}>
-        {[["overview","نظرة عامة"],["reqs","المواد"],["docs","الوثائق"]].map(([k,l])=>(
-          <button key={k} onClick={()=>setTab(k)} style={{flex:1,padding:"9px 4px",border:"none",borderRadius:8,cursor:"pointer",fontSize:12,fontFamily:"inherit",background:tab===k?"#1B2A4A":"#E5E7EB",color:tab===k?"#B8923C":"#374151",fontWeight:tab===k?700:400}}>{l}</button>
+      <div style={{display:"flex",gap:5,marginBottom:14,overflowX:"auto"}}>
+        {[["overview","عامة"],["license","الرخصة"],["reqs","المواد"],["docs","الوثائق"]].map(([k,l])=>(
+          <button key={k} onClick={()=>setTab(k)} style={{flex:1,padding:"9px 4px",border:"none",borderRadius:8,cursor:"pointer",fontSize:11,fontFamily:"inherit",whiteSpace:"nowrap",background:tab===k?"#1B2A4A":"#E5E7EB",color:tab===k?"#B8923C":"#374151",fontWeight:tab===k?700:400}}>{l}</button>
         ))}
       </div>
 
       {tab==="overview"&&(
         <Card>
           <SecTitle>معلومات الموقع</SecTitle>
-          {[["الحالة",<Badge label={currentSite.status} color={STATUS_COLOR[currentSite.status]}/>],["المهندس",currentSite.engineer],["رقم القطعة",currentSite.plot],["نسبة الإنجاز",`${currentSite.progress}%`],["طلبات المواد",siteReqs.length],["الوثائق",siteDocs.length]].map(([k,v])=>(
+          {[
+            ["الحالة",<Badge label={currentSite.status} color={STATUS_COLOR[currentSite.status]}/>],
+            ["مرحلة العمل",currentSite.phase||"—"],
+            ["المهندس",currentSite.engineer],
+            ["رقم القطعة",currentSite.plot],
+            ["الانجاز",`${currentSite.progress}%`],
+            ["طلبات المواد",siteReqs.length],
+            ["الوثائق",siteDocs.length],
+          ].map(([k,v])=>(
             <div key={k} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"9px 0",borderBottom:"1px solid #F3F4F6",fontSize:13}}>
               <span style={{color:"#6B7280"}}>{k}</span><span style={{fontWeight:600}}>{v}</span>
             </div>
           ))}
+          {currentSite.stopReason&&(
+            <div style={{marginTop:10,background:"#FEF2F2",borderRadius:8,padding:"8px 12px"}}>
+              <div style={{fontSize:11,fontWeight:700,color:"#EF4444",marginBottom:4}}>سبب التوقف</div>
+              <div style={{fontSize:12,color:"#374151"}}>{currentSite.stopReason}</div>
+            </div>
+          )}
         </Card>
+      )}
+
+      {tab==="license"&&(
+        <div>
+          <Card>
+            <SecTitle>بيانات الرخصة</SecTitle>
+            {[
+              ["رقم رخصة البناء",currentSite.licenseNo||"—"],
+              ["تاريخ البداية",currentSite.startDate||"—"],
+            ].map(([k,v])=>(
+              <div key={k} style={{display:"flex",justifyContent:"space-between",padding:"9px 0",borderBottom:"1px solid #F3F4F6",fontSize:13}}>
+                <span style={{color:"#6B7280"}}>{k}</span><span style={{fontWeight:600}}>{v}</span>
+              </div>
+            ))}
+          </Card>
+          <Card>
+            <SecTitle>مواعيد التسليم</SecTitle>
+            {[
+              ["تسليم ابتدائي",currentSite.initialDelivery||"—"],
+              ["تسليم نهائي",currentSite.finalDelivery||"—"],
+              ["فترة التمديد",currentSite.extensionPeriod?`${currentSite.extensionPeriod} يوم`:"—"],
+              ["تسليم بعد التمديد",currentSite.extendedDelivery||"—"],
+            ].map(([k,v])=>(
+              <div key={k} style={{display:"flex",justifyContent:"space-between",padding:"9px 0",borderBottom:"1px solid #F3F4F6",fontSize:13}}>
+                <span style={{color:"#6B7280"}}>{k}</span>
+                <span style={{fontWeight:700,color:k==="تسليم نهائي"?dlColor:"#1B2A4A"}}>{v}</span>
+              </div>
+            ))}
+          </Card>
+          {currentSite.stopPeriod&&<Card style={{background:"#FFF7ED",border:"1px solid #FED7AA"}}>
+            <SecTitle>بيانات التوقف</SecTitle>
+            <div style={{fontSize:13,color:"#374151"}}>فترة التوقف: <b>{currentSite.stopPeriod} يوم</b></div>
+            {currentSite.stopReason&&<div style={{fontSize:12,color:"#6B7280",marginTop:6,background:"#FEF2F2",padding:"6px 10px",borderRadius:6}}>{currentSite.stopReason}</div>}
+          </Card>}
+        </div>
       )}
 
       {tab==="reqs"&&(
@@ -353,7 +475,7 @@ const SiteDetail = ({site,role,userName,requests,docs,setRequests,setDocs,addNot
                 </div>
               </div>
               <PhaseBar current={r.phase}/>
-              {r.notes&&<div style={{marginTop:8,fontSize:11,color:"#6B7280",background:"#F9FAFB",padding:"6px 10px",borderRadius:6}}>ملاحظة: {r.notes}</div>}
+              {r.notes&&<div style={{marginTop:8,fontSize:11,color:"#6B7280",background:"#F9FAFB",padding:"6px 10px",borderRadius:6}}>{r.notes}</div>}
               {r.rejectedReason&&<div style={{marginTop:6,fontSize:11,color:"#DC2626",background:"#FEF2F2",padding:"6px 10px",borderRadius:6}}>سبب الرفض: {r.rejectedReason}</div>}
             </Card>
           ))}
@@ -362,25 +484,46 @@ const SiteDetail = ({site,role,userName,requests,docs,setRequests,setDocs,addNot
 
       {tab==="docs"&&(
         <div>
-          {(role==="مهندس"||role==="مدير")&&<Btn v="gold" full style={{marginBottom:12}} onClick={()=>setModal("doc")}>+ إضافة وثيقة</Btn>}
-          {siteDocs.length===0?<EmptyState text="لا توجد وثائق"/>:siteDocs.slice().reverse().map(d=>(
-            <Card key={d.id}>
-              <div style={{display:"flex",gap:12,alignItems:"flex-start"}}>
-                <div style={{width:44,height:44,borderRadius:10,background:"#EFF6FF",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0}}>{TYPE_ICON[d.type]||"📄"}</div>
-                <div style={{flex:1}}>
-                  <div style={{fontWeight:700,fontSize:13}}>{d.title}</div>
-                  <div style={{fontSize:11,color:"#9CA3AF",marginTop:2}}>{d.type}{d.refNum&&` • ${d.refNum}`} • {d.date} • {d.by}</div>
-                  {d.notes&&<div style={{fontSize:12,color:"#374151",marginTop:4,background:"#F9FAFB",padding:"6px 10px",borderRadius:6}}>{d.notes}</div>}
+          {(role==="مهندس"||role==="مدير")&&<Btn v="gold" full style={{marginBottom:12}} onClick={()=>setModal("doc")}>+ اضافة وثيقة</Btn>}
+          <div style={{display:"flex",gap:6,overflowX:"auto",paddingBottom:8,marginBottom:12}}>
+            {["الكل",...Object.keys(DOC_CATEGORIES)].map(c=>(
+              <button key={c} onClick={()=>setDocCat(c)} style={{padding:"5px 10px",border:"none",borderRadius:20,cursor:"pointer",whiteSpace:"nowrap",fontSize:11,fontWeight:600,fontFamily:"inherit",background:docCat===c?"#1B2A4A":"#E5E7EB",color:docCat===c?"#B8923C":"#374151"}}>{CAT_ICON[c]||""} {c}</button>
+            ))}
+          </div>
+          {Object.keys(DOC_CATEGORIES).map(cat=>{
+            const catDocs=filteredDocs.filter(d=>d.category===cat||(docCat!=="الكل"&&d.category===docCat));
+            const show=docCat==="الكل"?siteDocs.filter(d=>d.category===cat):filteredDocs;
+            if(docCat!=="الكل"&&cat!==docCat)return null;
+            const displayDocs=docCat==="الكل"?siteDocs.filter(d=>d.category===cat):filteredDocs;
+            if(displayDocs.length===0&&docCat!=="الكل")return <EmptyState key={cat} text={`لا توجد وثائق في ${cat}`}/>;
+            if(displayDocs.length===0)return null;
+            return (
+              <div key={cat}>
+                <div style={{fontSize:12,fontWeight:700,color:CAT_COLOR[cat]||"#1B2A4A",marginBottom:8,display:"flex",alignItems:"center",gap:6}}>
+                  <span>{CAT_ICON[cat]}</span>{cat} ({displayDocs.length})
                 </div>
-                {role==="مدير"&&<button onClick={()=>setConfirm({type:"doc",id:d.id})} style={{background:"none",border:"none",cursor:"pointer",color:"#EF4444",fontSize:16,flexShrink:0}}>🗑️</button>}
+                {displayDocs.slice().reverse().map(d=>(
+                  <Card key={d.id}>
+                    <div style={{display:"flex",gap:10,alignItems:"flex-start"}}>
+                      <div style={{width:40,height:40,borderRadius:10,background:(CAT_COLOR[d.category]||"#6B7280")+"22",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,flexShrink:0}}>{CAT_ICON[d.category]||"📄"}</div>
+                      <div style={{flex:1}}>
+                        <div style={{fontWeight:700,fontSize:13}}>{d.title}</div>
+                        <div style={{fontSize:11,color:"#9CA3AF",marginTop:2}}>{d.type}{d.refNum&&` • ${d.refNum}`} • {d.date} • {d.by}</div>
+                        {d.notes&&<div style={{fontSize:11,color:"#374151",marginTop:4,background:"#F9FAFB",padding:"5px 8px",borderRadius:6}}>{d.notes}</div>}
+                      </div>
+                      {role==="مدير"&&<button onClick={()=>setConfirm({type:"doc",id:d.id})} style={{background:"none",border:"none",cursor:"pointer",color:"#EF4444",fontSize:16,flexShrink:0}}>🗑️</button>}
+                    </div>
+                  </Card>
+                ))}
               </div>
-            </Card>
-          ))}
+            );
+          })}
+          {siteDocs.length===0&&<EmptyState text="لا توجد وثائق"/>}
         </div>
       )}
 
-      {modal==="doc"&&<DocForm siteId={site.id} siteName={site.name} userName={userName} onSave={d=>{setDocs([...docs,d]);showToast("✓ تم حفظ الوثيقة");}} onClose={()=>setModal(null)}/>}
-      {modal==="req"&&<ReqForm siteId={site.id} siteName={site.name} userName={userName} onSave={r=>{setRequests([...requests,r]);addNotif({id:uid(),text:`📦 طلب مواد: ${r.material} — ${r.site}`,role:"مشتريات",read:false,time:new Date().toLocaleString("ar")});showToast("✓ تم إرسال الطلب للمشتريات");}} onClose={()=>setModal(null)}/>}
+      {modal==="doc"&&<DocForm2 siteId={site.id} siteName={site.name} userName={userName} onSave={d=>{setDocs([...docs,d]);showToast("✓ تم حفظ الوثيقة");}} onClose={()=>setModal(null)}/>}
+      {modal==="req"&&<ReqForm siteId={site.id} siteName={site.name} userName={userName} onSave={r=>{setRequests([...requests,r]);addNotif({id:uid(),text:`📦 طلب مواد: ${r.material} — ${r.site}`,role:"مشتريات",read:false,time:new Date().toLocaleString("ar")});showToast("✓ تم الارسال للمشتريات");}} onClose={()=>setModal(null)}/>}
       {confirm&&<ConfirmModal msg="هتحذف العنصر ده؟" onYes={()=>confirm.type==="doc"?delDoc(confirm.id):delReq(confirm.id)} onNo={()=>setConfirm(null)}/>}
     </div>
   );
@@ -745,6 +888,93 @@ const Notifications = ({notifs,setNotifs,role}) => {
   );
 };
 
+
+// ── DAMAC ISSUES ─────────────────────────────────────────────
+const DamacIssues = ({role,damacIssues,setDamacIssues,sites,showToast,addNotif,userName}) => {
+  const [modal,setModal]=useState(false);
+  const [confirm,setConfirm]=useState(null);
+  const [filter,setFilter]=useState("الكل");
+  const [f,setF]=useState({siteId:"",date:TODAY,type:"ازالة رمل",title:"",details:"",status:"مفتوح",priority:"متوسط"});
+  const issueTypes=["ازالة رمل","سور خارجي","Safety","مخلفات بناء","طريق مسدود","اضرار موقع","شكوى جار","أخرى"];
+  const statusColor={"مفتوح":"#EF4444","قيد المعالجة":"#F59E0B","مغلق":"#10B981"};
+  const priorityColor={"عالي":"#EF4444","متوسط":"#F59E0B","منخفض":"#10B981"};
+
+  const save=()=>{
+    if(!f.title.trim())return;
+    const site=sites.find(s=>s.id===f.siteId);
+    const issue={...f,id:uid(),siteName:site?.name||"عام",createdBy:userName,createdAt:TODAY};
+    const upd=[...damacIssues,issue]; setDamacIssues(upd);
+    if(f.priority==="عالي") addNotif({id:uid(),text:`🚨 مشكلة DAMAC عالية الاولوية: ${f.title}`,role:"مدير",read:false,time:new Date().toLocaleString("ar")});
+    showToast("✓ تم تسجيل المشكلة"); setModal(false);
+    setF({siteId:"",date:TODAY,type:"ازالة رمل",title:"",details:"",status:"مفتوح",priority:"متوسط"});
+  };
+
+  const filtered=filter==="الكل"?damacIssues:damacIssues.filter(i=>i.status===filter);
+
+  return (
+    <div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+        <div style={{fontSize:18,fontWeight:800,color:"#1B2A4A"}}>مشاكل DAMAC</div>
+        <Btn v="gold" onClick={()=>setModal(true)} style={{padding:"7px 14px",fontSize:12}}>+ مشكلة جديدة</Btn>
+      </div>
+      <div style={{fontSize:12,color:"#9CA3AF",marginBottom:14}}>
+        {damacIssues.filter(i=>i.status==="مفتوح").length} مفتوح • {damacIssues.filter(i=>i.priority==="عالي"&&i.status==="مفتوح").length} عالي الاولوية
+      </div>
+
+      <div style={{display:"flex",gap:6,marginBottom:14}}>
+        {["الكل","مفتوح","قيد المعالجة","مغلق"].map(s=>(
+          <button key={s} onClick={()=>setFilter(s)} style={{padding:"5px 12px",border:"none",borderRadius:20,cursor:"pointer",fontSize:11,fontWeight:600,fontFamily:"inherit",background:filter===s?"#1B2A4A":"#E5E7EB",color:filter===s?"#B8923C":"#374151"}}>{s}</button>
+        ))}
+      </div>
+
+      {filtered.length===0?<EmptyState text="لا توجد مشاكل مسجلة"/>:filtered.slice().reverse().map(issue=>(
+        <Card key={issue.id} style={{borderRight:`4px solid ${statusColor[issue.status]||"#6B7280"}`}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
+            <div style={{flex:1}}>
+              <div style={{display:"flex",gap:6,alignItems:"center",marginBottom:4,flexWrap:"wrap"}}>
+                <Badge label={issue.type} color="#8B5CF6"/>
+                <Badge label={issue.priority} color={priorityColor[issue.priority]}/>
+              </div>
+              <div style={{fontWeight:700,fontSize:14}}>{issue.title}</div>
+              <div style={{fontSize:12,color:"#6B7280",marginTop:2}}>{issue.siteName} • {issue.date} • {issue.createdBy}</div>
+            </div>
+            <div style={{display:"flex",gap:6,alignItems:"center"}}>
+              <Badge label={issue.status} color={statusColor[issue.status]}/>
+              {role==="مدير"&&<button onClick={()=>setConfirm(issue.id)} style={{background:"none",border:"none",cursor:"pointer",color:"#EF4444",fontSize:16}}>🗑️</button>}
+            </div>
+          </div>
+          {issue.details&&<div style={{fontSize:12,color:"#374151",background:"#F9FAFB",padding:"8px 12px",borderRadius:8,marginBottom:10}}>{issue.details}</div>}
+          {role==="مدير"&&issue.status!=="مغلق"&&(
+            <div style={{display:"flex",gap:8}}>
+              {issue.status==="مفتوح"&&<Btn v="secondary" style={{flex:1,fontSize:12}} onClick={()=>setDamacIssues(damacIssues.map(x=>x.id===issue.id?{...x,status:"قيد المعالجة"}:x))}>قيد المعالجة</Btn>}
+              <Btn style={{flex:1,fontSize:12}} onClick={()=>{setDamacIssues(damacIssues.map(x=>x.id===issue.id?{...x,status:"مغلق"}:x));showToast("✓ تم الاغلاق");}}>✓ اغلاق</Btn>
+            </div>
+          )}
+        </Card>
+      ))}
+
+      {modal&&(
+        <Modal title="تسجيل مشكلة DAMAC" onClose={()=>setModal(false)}>
+          <Sel label="الموقع (اختياري)" value={f.siteId} onChange={v=>setF({...f,siteId:v})} options={[{value:"",label:"عام - غير مرتبط بموقع"},...sites.map(s=>({value:s.id,label:s.name}))]}/>
+          <Inp label="التاريخ" value={f.date} onChange={v=>setF({...f,date:v})} type="date"/>
+          <Sel label="نوع المشكلة" value={f.type} onChange={v=>setF({...f,type:v})} options={issueTypes} required/>
+          <Inp label="عنوان المشكلة" value={f.title} onChange={v=>setF({...f,title:v})} placeholder="وصف مختصر للمشكلة" required/>
+          <div style={{display:"flex",gap:8}}>
+            <div style={{flex:1}}><Sel label="الاولوية" value={f.priority} onChange={v=>setF({...f,priority:v})} options={["عالي","متوسط","منخفض"]}/></div>
+            <div style={{flex:1}}><Sel label="الحالة" value={f.status} onChange={v=>setF({...f,status:v})} options={["مفتوح","قيد المعالجة","مغلق"]}/></div>
+          </div>
+          <Inp label="التفاصيل" value={f.details} onChange={v=>setF({...f,details:v})} placeholder="تفاصيل المشكلة والاجراءات المطلوبة..." rows={4}/>
+          <div style={{display:"flex",gap:8}}>
+            <Btn full disabled={!f.title.trim()} onClick={save}>تسجيل المشكلة</Btn>
+            <Btn v="secondary" full onClick={()=>setModal(false)}>الغاء</Btn>
+          </div>
+        </Modal>
+      )}
+      {confirm&&<ConfirmModal msg="هتحذف المشكلة دي؟" onYes={()=>{setDamacIssues(damacIssues.filter(i=>i.id!==confirm));setConfirm(null);showToast("تم الحذف");}} onNo={()=>setConfirm(null)}/>}
+    </div>
+  );
+};
+
 // ── MAIN APP ─────────────────────────────────────────────────
 export default function App() {
   const [user,setUser]=useState(null);
@@ -757,7 +987,7 @@ export default function App() {
   const [notifs,setNotifsR]=useState(()=>load("ch_notifs",[]));
   const [attendance,setAttendanceR]=useState(()=>load("ch_att",[]));
   const [reports,setReportsR]=useState(()=>load("ch_reports",[]));
-  const [formalReqs,setFormalR]=useState(()=>load("ch_formal",[]));
+  const [formalReqs,setFormalR]=useState(()=>load("ch_formal",[]));  const [damacIssues,setDamacIssuesR]=useState(()=>load("ch_damac",[]));  const setDamacIssues=v=>{setDamacIssuesR(v);save("ch_damac",v);};
 
   const setSites=v=>{setSitesR(v);save("ch_sites",v);};
   const setRequests=v=>{setRequestsR(v);save("ch_requests",v);};
@@ -789,6 +1019,7 @@ export default function App() {
     {key:"attendance",label:"الحضور والغياب",icon:"👷"},
     {key:"procurement",label:"المشتريات",icon:"📦"},
     {key:"formal",label:"الطلبات الرسمية",icon:"📝"},
+    {key:"damac",label:"مشاكل DAMAC",icon:"⚠️"},
     {key:"notifs",label:`الإشعارات${unread>0?` (${unread})`:""}`,icon:"🔔"},
   ];
 
@@ -813,6 +1044,7 @@ export default function App() {
         {screen==="attendance"&&<Attendance role={user.role} attendance={attendance} setAttendance={setAttendance} sites={sites} engineers={engineers} showToast={showToast} addNotif={addNotif}/>}
         {screen==="procurement"&&<Procurement role={user.role} requests={requests} setRequests={setRequests} addNotif={addNotif} showToast={showToast}/>}
         {screen==="formal"&&<FormalRequests role={user.role} formalReqs={formalReqs} setFormalReqs={setFormalReqs} sites={sites} showToast={showToast} addNotif={addNotif} userName={user.name}/>}
+        {screen==="damac"&&<DamacIssues role={user.role} damacIssues={damacIssues} setDamacIssues={setDamacIssues} sites={sites} showToast={showToast} addNotif={addNotif} userName={user.name}/> }
         {screen==="notifs"&&<Notifications notifs={notifs} setNotifs={setNotifs} role={user.role}/>}
         {screen==="more"&&(
           <div>
