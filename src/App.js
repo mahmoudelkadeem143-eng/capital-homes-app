@@ -1,6 +1,7 @@
-import { useState, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { AIAnalysis } from "./AIAnalysis";
 import { INIT_SITES, ENGINEERS_LIST } from "./data";
+import { sitesApi, requestsApi, docsApi, reportsApi, attendanceApi, notifsApi, formalApi, damacApi } from "./supabase";
 
 const load = (key, def) => { try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : def; } catch { return def; } };
 const save = (key, val) => { try { localStorage.setItem(key, JSON.stringify(val)); } catch {} };
@@ -231,9 +232,19 @@ const SitesList = ({sites,setSites,role,onSelect,engineers,showToast}) => {
     return ms&&mf;
   });
 
-  const addSite = data => { const upd=[...sites,{...data,id:uid(),createdAt:TODAY}]; setSites(upd); setModal(null); showToast("✓ تم إضافة الموقع"); };
-  const editSite = data => { const upd=sites.map(s=>s.id===data.id?data:s); setSites(upd); setModal(null); showToast("✓ تم التعديل"); };
-  const deleteSite = id => { const upd=sites.filter(s=>s.id!==id); setSites(upd); setConfirm(null); showToast("تم الحذف"); };
+  const addSite = async data => {
+    const s={...data,id:uid(),createdAt:TODAY};
+    try{ await sitesApi.upsert(s); setSites([...sites,s]); setModal(null); showToast("✓ تم إضافة الموقع"); }
+    catch(e){ showToast("خطأ: "+e.message); }
+  };
+  const editSite = async data => {
+    try{ await sitesApi.upsert(data); setSites(sites.map(s=>s.id===data.id?data:s)); setModal(null); showToast("✓ تم التعديل"); }
+    catch(e){ showToast("خطأ: "+e.message); }
+  };
+  const deleteSite = async id => {
+    try{ await sitesApi.delete(id); setSites(sites.filter(s=>s.id!==id)); setConfirm(null); showToast("تم الحذف"); }
+    catch(e){ showToast("خطأ: "+e.message); }
+  };
 
   return (
     <div>
@@ -377,9 +388,19 @@ const SiteDetail = ({site,role,userName,requests,docs,setRequests,setDocs,addNot
   const siteDocs=docs.filter(d=>d.siteId===site.id);
   const currentSite=sites.find(s=>s.id===site.id)||site;
 
-  const saveProgress=()=>{const upd=sites.map(s=>s.id===site.id?{...s,progress:prog}:s);setSites(upd);setEditProgress(false);showToast("✓ تم تحديث التقدم");};
-  const delDoc=id=>{setDocs(docs.filter(d=>d.id!==id));setConfirm(null);showToast("تم الحذف");};
-  const delReq=id=>{setRequests(requests.filter(r=>r.id!==id));setConfirm(null);showToast("تم الحذف");};
+  const saveProgress=async()=>{
+    const updated={...currentSite,progress:prog};
+    try{ await sitesApi.upsert(updated); setSites(sites.map(s=>s.id===site.id?updated:s)); setEditProgress(false); showToast("✓ تم تحديث التقدم"); }
+    catch(e){ showToast("خطأ: "+e.message); }
+  };
+  const delDoc=async id=>{
+    try{ await docsApi.delete(id); setDocs(docs.filter(d=>d.id!==id)); setConfirm(null); showToast("تم الحذف"); }
+    catch(e){ showToast("خطأ: "+e.message); }
+  };
+  const delReq=async id=>{
+    try{ await requestsApi.delete(id); setRequests(requests.filter(r=>r.id!==id)); setConfirm(null); showToast("تم الحذف"); }
+    catch(e){ showToast("خطأ: "+e.message); }
+  };
 
   const filteredDocs=docCat==="الكل"?siteDocs:siteDocs.filter(d=>d.category===docCat);
 
@@ -552,8 +573,8 @@ const SiteDetail = ({site,role,userName,requests,docs,setRequests,setDocs,addNot
         </div>
       )}
 
-      {modal==="doc"&&<DocForm2 siteId={site.id} siteName={site.name} userName={userName} onSave={d=>{setDocs([...docs,d]);showToast("✓ تم حفظ الوثيقة");}} onClose={()=>setModal(null)}/>}
-      {modal==="req"&&<ReqForm siteId={site.id} siteName={site.name} userName={userName} onSave={r=>{setRequests([...requests,r]);addNotif({id:uid(),text:`📦 طلب مواد: ${r.material} — ${r.site}`,role:"مشتريات",read:false,time:new Date().toLocaleString("ar")});showToast("✓ تم الارسال للمشتريات");}} onClose={()=>setModal(null)}/>}
+      {modal==="doc"&&<DocForm2 siteId={site.id} siteName={site.name} userName={userName} onSave={async d=>{try{await docsApi.insert(d);setDocs([...docs,d]);showToast("✓ تم حفظ الوثيقة");}catch(e){showToast("خطأ: "+e.message);}}} onClose={()=>setModal(null)}/>}
+      {modal==="req"&&<ReqForm siteId={site.id} siteName={site.name} userName={userName} onSave={async r=>{try{await requestsApi.upsert(r);setRequests([...requests,r]);const n={id:uid(),text:`📦 طلب مواد: ${r.material} — ${r.site}`,role:"مشتريات",read:false,time:new Date().toLocaleString("ar")};await notifsApi.insert(n);setNotifs([n,...notifs]);showToast("✓ تم الارسال للمشتريات");}catch(e){showToast("خطأ: "+e.message);}}} onClose={()=>setModal(null)}/>}
       {confirm&&<ConfirmModal msg="هتحذف العنصر ده؟" onYes={()=>confirm.type==="doc"?delDoc(confirm.id):delReq(confirm.id)} onNo={()=>setConfirm(null)}/>}
     </div>
   );
@@ -1011,24 +1032,47 @@ export default function App() {
   const [screen,setScreen]=useState("dashboard");
   const [selectedSite,setSelectedSite]=useState(null);
 
-  const [sites,setSitesR]=useState(()=>{
-    const saved=load("ch_sites",[]);
-    return saved.length>0?saved:INIT_SITES;
-  });
-  const [requests,setRequestsR]=useState(()=>load("ch_requests",[]));
-  const [docs,setDocsR]=useState(()=>load("ch_docs",[]));
-  const [notifs,setNotifsR]=useState(()=>load("ch_notifs",[]));
-  const [attendance,setAttendanceR]=useState(()=>load("ch_att",[]));
-  const [reports,setReportsR]=useState(()=>load("ch_reports",[]));
-  const [formalReqs,setFormalR]=useState(()=>load("ch_formal",[]));  const [damacIssues,setDamacIssuesR]=useState(()=>load("ch_damac",[]));  const setDamacIssues=v=>{setDamacIssuesR(v);save("ch_damac",v);};
+  const [sites,setSitesR]=useState([]);
+  const [requests,setRequestsR]=useState([]);
+  const [docs,setDocsR]=useState([]);
+  const [notifs,setNotifsR]=useState([]);
+  const [attendance,setAttendanceR]=useState([]);
+  const [reports,setReportsR]=useState([]);
+  const [formalReqs,setFormalR]=useState([]);
+  const [damacIssues,setDamacIssuesR]=useState([]);
+  const [dbLoading,setDbLoading]=useState(true);
+  const [dbError,setDbError]=useState("");
 
-  const setSites=v=>{setSitesR(v);save("ch_sites",v);};
-  const setRequests=v=>{setRequestsR(v);save("ch_requests",v);};
-  const setDocs=v=>{setDocsR(v);save("ch_docs",v);};
-  const setNotifs=v=>{setNotifsR(v);save("ch_notifs",v);};
-  const setAttendance=v=>{setAttendanceR(v);save("ch_att",v);};
-  const setReports=v=>{setReportsR(v);save("ch_reports",v);};
-  const setFormalReqs=v=>{setFormalR(v);save("ch_formal",v);};
+  // Load all data from Supabase on mount
+  useEffect(()=>{
+    const loadAll=async()=>{
+      try{
+        setDbLoading(true);
+        await sitesApi.seedIfEmpty(INIT_SITES);
+        const [s,r,d,n,a,rp,f,di]=await Promise.all([
+          sitesApi.getAll(),requestsApi.getAll(),docsApi.getAll(),
+          notifsApi.getAll(),attendanceApi.getAll(),reportsApi.getAll(),
+          formalApi.getAll(),damacApi.getAll()
+        ]);
+        setSitesR(s);setRequestsR(r);setDocsR(d);setNotifsR(n);
+        setAttendanceR(a);setReportsR(rp);setFormalR(f);setDamacIssuesR(di);
+      }catch(e){
+        setDbError("تعذر الاتصال بقاعدة البيانات: "+e.message);
+      }finally{
+        setDbLoading(false);
+      }
+    };
+    loadAll();
+  },[]);
+
+  const setSites=async v=>{setSitesR(v);};
+  const setRequests=async v=>{setRequestsR(v);};
+  const setDocs=async v=>{setDocsR(v);};
+  const setNotifs=async v=>{setNotifsR(v);};
+  const setAttendance=async v=>{setAttendanceR(v);};
+  const setReports=async v=>{setReportsR(v);};
+  const setFormalReqs=async v=>{setFormalR(v);};
+  const setDamacIssues=async v=>{setDamacIssuesR(v);};
 
   const [toast,setToast]=useState("");
   const showToast=msg=>{setToast(msg);setTimeout(()=>setToast(""),2500);};
@@ -1038,6 +1082,26 @@ export default function App() {
   const unread=notifs.filter(n=>!n.read&&(user?.role==="مدير"||n.role===user?.role)).length;
 
   if(!user) return <Login onLogin={(role,name)=>setUser({role,name})}/>;
+
+  if(dbLoading) return (
+    <div style={{minHeight:"100vh",background:"#1B2A4A",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:16}}>
+      <div style={{fontSize:52}}>🏗️</div>
+      <div style={{fontSize:18,fontWeight:800,color:"#B8923C"}}>Capital Homes</div>
+      <div style={{fontSize:13,color:"#94A3B8"}}>جاري تحميل البيانات...</div>
+      <div style={{width:200,background:"rgba(255,255,255,0.1)",borderRadius:99,height:6,marginTop:8}}>
+        <div style={{width:"60%",background:"#B8923C",height:6,borderRadius:99}}/>
+      </div>
+    </div>
+  );
+
+  if(dbError) return (
+    <div style={{minHeight:"100vh",background:"#1B2A4A",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:16,padding:24}}>
+      <div style={{fontSize:52}}>⚠️</div>
+      <div style={{fontSize:16,fontWeight:700,color:"#FCA5A5",textAlign:"center"}}>{dbError}</div>
+      <div style={{fontSize:12,color:"#94A3B8",textAlign:"center"}}>تأكد من إعداد قاعدة البيانات وحاول مرة أخرى</div>
+      <button onClick={()=>window.location.reload()} style={{background:"#B8923C",color:"#fff",border:"none",borderRadius:10,padding:"12px 24px",fontSize:14,fontWeight:700,cursor:"pointer"}}>إعادة المحاولة</button>
+    </div>
+  );
 
   const nav=[
     {key:"dashboard",label:"الرئيسية",icon:"🏠"},
