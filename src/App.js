@@ -1,12 +1,13 @@
 import { useState, useRef } from "react";
 import { AIAnalysis } from "./AIAnalysis";
+import { INIT_SITES, ENGINEERS_LIST } from "./data";
 
 const load = (key, def) => { try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : def; } catch { return def; } };
 const save = (key, val) => { try { localStorage.setItem(key, JSON.stringify(val)); } catch {} };
 const TODAY = new Date().toISOString().split("T")[0];
 const uid = () => `id-${Date.now()}-${Math.random().toString(36).slice(2,7)}`;
 
-const ENGINEERS_DEFAULT = ["أحمد هارون", "محمد النجار", "محمد موسى", "خالد إبراهيم", "عمر سعيد"];
+const ENGINEERS_DEFAULT = ENGINEERS_LIST;
 const PHASES = ["طلب","عرض سعر","اعتماد","أمر شراء","توريد","صرف"];
 const PHASE_NEXT = {"طلب":"عرض سعر","عرض سعر":"اعتماد","اعتماد":"أمر شراء","أمر شراء":"توريد","توريد":"صرف"};
 const PHASE_COLOR = {"طلب":"#6B7280","عرض سعر":"#F59E0B","اعتماد":"#3B82F6","أمر شراء":"#8B5CF6","توريد":"#10B981","صرف":"#059669","مرفوض":"#EF4444"};
@@ -324,7 +325,20 @@ const DocForm2 = ({siteId,siteName,userName,onSave,onClose}) => {
   const [title,setTitle]=useState("");
   const [refNum,setRefNum]=useState("");
   const [notes,setNotes]=useState("");
+  const [fileData,setFileData]=useState(null);
+  const [fileName,setFileName]=useState("");
+  const fileRef=useRef();
   const subtypes=DOC_CATEGORIES[cat]||[];
+
+  const handleFile=e=>{
+    const f=e.target.files[0];
+    if(!f)return;
+    if(f.size>5*1024*1024){alert("الملف أكبر من 5MB");return;}
+    const reader=new FileReader();
+    reader.onload=ev=>{setFileData(ev.target.result);setFileName(f.name);if(!title)setTitle(f.name.replace(/\.[^/.]+$/,""));};
+    reader.readAsDataURL(f);
+  };
+
   return (
     <Modal title="اضافة وثيقة" onClose={onClose}>
       <Sel label="التصنيف" value={cat} onChange={v=>{setCat(v);setSubtype("");}} options={Object.keys(DOC_CATEGORIES)} required/>
@@ -332,8 +346,16 @@ const DocForm2 = ({siteId,siteName,userName,onSave,onClose}) => {
       <Inp label="العنوان" value={title} onChange={setTitle} placeholder="عنوان الوثيقة" required/>
       <Inp label="رقم المرجع" value={refNum} onChange={setRefNum} placeholder="CH-2026-001"/>
       <Inp label="ملاحظات" value={notes} onChange={setNotes} rows={2}/>
+      <div style={{marginBottom:14}}>
+        <div style={{fontSize:13,fontWeight:600,color:"#374151",marginBottom:8}}>📎 رفع ملف (PDF أو صورة)</div>
+        <input ref={fileRef} type="file" accept=".pdf,.doc,.docx,image/*" onChange={handleFile} style={{display:"none"}}/>
+        <button onClick={()=>fileRef.current.click()} style={{width:"100%",padding:12,border:"2px dashed #D1D5DB",borderRadius:10,background:fileData?"#F0FDF4":"#F9FAFB",color:fileData?"#166534":"#6B7280",cursor:"pointer",fontFamily:"inherit",fontSize:13}}>
+          {fileData?`✅ ${fileName}`:"📁 اختار ملف من جهازك"}
+        </button>
+        {fileData&&<div style={{fontSize:11,color:"#6B7280",marginTop:4,textAlign:"center"}}>الملف جاهز للرفع</div>}
+      </div>
       <div style={{display:"flex",gap:8}}>
-        <Btn full disabled={!title.trim()||!subtype} onClick={()=>{onSave({id:uid(),siteId,site:siteName,title:title.trim(),category:cat,type:subtype,refNum,notes,by:userName,date:TODAY});onClose();}}>حفظ</Btn>
+        <Btn full disabled={!title.trim()||!subtype} onClick={()=>{onSave({id:uid(),siteId,site:siteName,title:title.trim(),category:cat,type:subtype,refNum,notes,by:userName,date:TODAY,fileData,fileName});onClose();}}>حفظ الوثيقة</Btn>
         <Btn v="secondary" full onClick={onClose}>الغاء</Btn>
       </div>
     </Modal>
@@ -510,6 +532,14 @@ const SiteDetail = ({site,role,userName,requests,docs,setRequests,setDocs,addNot
                         <div style={{fontWeight:700,fontSize:13}}>{d.title}</div>
                         <div style={{fontSize:11,color:"#9CA3AF",marginTop:2}}>{d.type}{d.refNum&&` • ${d.refNum}`} • {d.date} • {d.by}</div>
                         {d.notes&&<div style={{fontSize:11,color:"#374151",marginTop:4,background:"#F9FAFB",padding:"5px 8px",borderRadius:6}}>{d.notes}</div>}
+                        {d.fileData&&(
+                          <a href={d.fileData} download={d.fileName||d.title} style={{display:"inline-block",marginTop:6,fontSize:11,color:"#3B82F6",background:"#EFF6FF",padding:"4px 10px",borderRadius:6,textDecoration:"none"}}>
+                            📥 تحميل {d.fileName||"الملف"}
+                          </a>
+                        )}
+                        {d.fileData&&d.fileData.startsWith("data:image")&&(
+                          <img src={d.fileData} alt={d.title} style={{width:"100%",borderRadius:8,marginTop:8,maxHeight:200,objectFit:"cover"}}/>
+                        )}
                       </div>
                       {role==="مدير"&&<button onClick={()=>setConfirm({type:"doc",id:d.id})} style={{background:"none",border:"none",cursor:"pointer",color:"#EF4444",fontSize:16,flexShrink:0}}>🗑️</button>}
                     </div>
@@ -981,7 +1011,10 @@ export default function App() {
   const [screen,setScreen]=useState("dashboard");
   const [selectedSite,setSelectedSite]=useState(null);
 
-  const [sites,setSitesR]=useState(()=>load("ch_sites",[]));
+  const [sites,setSitesR]=useState(()=>{
+    const saved=load("ch_sites",[]);
+    return saved.length>0?saved:INIT_SITES;
+  });
   const [requests,setRequestsR]=useState(()=>load("ch_requests",[]));
   const [docs,setDocsR]=useState(()=>load("ch_docs",[]));
   const [notifs,setNotifsR]=useState(()=>load("ch_notifs",[]));
